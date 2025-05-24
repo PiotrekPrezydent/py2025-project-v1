@@ -1,0 +1,35 @@
+[
+    {
+        "id": "T1",
+        "name": "Czujnik temperatury",
+        "type": "temperature",
+        "unit": "°C",
+        "min_value": -10,
+        "max_value": 35,
+        "frequency": 2
+    },
+    {
+        "id": "H1",
+        "name": "Czujnik wilgotności",
+        "type": "humidity",
+        "unit": "%",
+        "min_value": 20,
+        "max_value": 90
+    },
+    {
+        "id": "P1",
+        "name": "Czujnik ciśnienia",
+        "type": "pressure",
+        "unit": "hPa",
+        "min_value": 970,
+        "max_value": 1030
+    },
+    {
+        "id": "L1",
+        "name": "Czujnik światła",
+        "type": "light",
+        "unit": "lx",
+        "min_value": 0,
+        "max_value": 10000
+    }
+]
