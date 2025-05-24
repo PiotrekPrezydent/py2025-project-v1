@@ -64,6 +64,29 @@ class SensorManager:
             except Exception as e:
                 print(f"[{sensor.name}] Błąd: {e}")
 
+    def log_sensors_data(self):
+        logs = []
+        for sensor in self.sensors:
+            try:
+                value = sensor.read_value()
+                log_entry = {
+                    "sensor_id": sensor.sensor_id,
+                    "name": sensor.name,
+                    "value": value,
+                    "unit": sensor.unit
+                }
+                print(f"[{sensor.name}] {value} {sensor.unit}")
+                logs.append(log_entry)
+            except Exception as e:
+                error_entry = {
+                    "sensor_id": sensor.sensor_id,
+                    "name": sensor.name,
+                    "error": str(e)
+                }
+                print(f"Nie można odczytać {sensor.name}: {e}")
+                logs.append(error_entry)
+        return logs
+
     async def log_all_readings(self, interval=1):
         while True:
             print("\n--- Odczyty sensorów ---")
