@@ -7,7 +7,7 @@ CONFIG_PATH = "./configs/sensors_config.json"
 async def main():
     manager = SensorManager(CONFIG_PATH)
     manager.start_all()
-    manager.start_refresh_loop(interval=0.1)
+    manager.start_refresh_loop()
 
     readings = manager.get_all_readings()
     print("--- Pierwszy odczyt ---")

@@ -6,7 +6,7 @@ from sensors.sensor_manager import SensorManager
 
 class TestSensorManager(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        # Tworzenie tymczasowej konfiguracji sensorów
+        # Tworzenie tymczasowej konfiguracji sensorów z różną częstotliwością
         self.test_config = [
             {
                 "id": "1",
@@ -14,7 +14,8 @@ class TestSensorManager(unittest.IsolatedAsyncioTestCase):
                 "name": "Czujnik temperatury",
                 "unit": "°C",
                 "min_value": -10,
-                "max_value": 40
+                "max_value": 40,
+                "frequency": 0.1
             },
             {
                 "id": "2",
@@ -22,7 +23,8 @@ class TestSensorManager(unittest.IsolatedAsyncioTestCase):
                 "name": "Czujnik wilgotności",
                 "unit": "%",
                 "min_value": 10,
-                "max_value": 90
+                "max_value": 90,
+                "frequency": 0.2
             }
         ]
         self.config_path = "tests/temp_test_config.json"
@@ -68,10 +70,10 @@ class TestSensorManager(unittest.IsolatedAsyncioTestCase):
 
     async def test_refresh_loop_updates_sensor_values(self):
         sensor = self.manager.sensors[0]
-        initial_value = sensor.last_value
-        self.manager.start_refresh_loop(interval=0.1)
-        await asyncio.sleep(0.3)
-        await self.manager.stop_refresh_loop()
-        self.assertIsNotNone(sensor.last_value)
-        self.assertNotEqual(sensor.last_value, initial_value)
+        self.assertIsNone(sensor.last_value)
 
+        self.manager.start_refresh_loop()
+        await asyncio.sleep(0.3)  # dłużej niż frequency (0.1) => co najmniej 2 odczyty
+        await self.manager.stop_refresh_loop()
+
+        self.assertIsNotNone(sensor.last_value)

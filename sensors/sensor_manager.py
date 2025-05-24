@@ -16,7 +16,7 @@ class SensorManager:
     def __init__(self, config_path):
         self.sensors = []
         self.load_config(config_path)
-        self._task = None
+        self._sensor_tasks = {}
         self._stop_event = asyncio.Event()
 
     def load_config(self, path):
@@ -65,23 +65,24 @@ class SensorManager:
     
     def get_all_readings(self):
         return [sensor.get_status() for sensor in self.sensors]
+    
+    def start_refresh_loop(self):
+        self._stop_event.clear()
+        for sensor in self.sensors:
+            if sensor.sensor_id not in self._sensor_tasks or self._sensor_tasks[sensor.sensor_id].done():
+                task = asyncio.create_task(self._sensor_loop(sensor))
+                self._sensor_tasks[sensor.sensor_id] = task
 
-    async def _refresh_loop(self, interval=1):
+    async def _sensor_loop(self, sensor):
         while not self._stop_event.is_set():
-            for sensor in self.sensors:
-                if sensor.active:
-                    try:
-                        sensor.read_value()
-                    except Exception:
-                        pass
-            await asyncio.sleep(interval)
-
-    def start_refresh_loop(self, interval=1):
-        if self._task is None or self._task.done():
-            self._stop_event.clear()
-            self._task = asyncio.create_task(self._refresh_loop(interval))
+            if sensor.active:
+                try:
+                    sensor.read_value()
+                except Exception:
+                    pass
+            await asyncio.sleep(sensor.frequency)
 
     async def stop_refresh_loop(self):
-        if self._task:
-            self._stop_event.set()
-            await self._task
+        self._stop_event.set()
+        await asyncio.gather(*self._sensor_tasks.values(), return_exceptions=True)
+        self._sensor_tasks.clear()
