@@ -14,7 +14,7 @@ class Sensor:
     def read_value(self):
         if not self.active:
             raise Exception(f"Czujnik {self.name} jest wyłączony.")
-        value = random.uniform(self.min_value, self.max_value)
+        value = float(random.uniform(self.min_value, self.max_value))
         self.last_value = value
         return value
 
@@ -37,3 +37,31 @@ class Sensor:
 
     def __str__(self):
         return f"Sensor(id={self.sensor_id}, name={self.name}, unit={self.unit})"
+    
+    def get_status(self):
+        if self.active:
+            try:
+                value = self.get_last_value()
+                return {
+                    "sensor_id": self.sensor_id,
+                    "name": self.name,
+                    "value": value,
+                    "unit": self.unit,
+                    "active": True
+                }
+            except Exception as e:
+                return {
+                    "sensor_id": self.sensor_id,
+                    "name": self.name,
+                    "error": str(e),
+                    "unit": self.unit,
+                    "active": True
+                }
+        else:
+            return {
+                "sensor_id": self.sensor_id,
+                "name": self.name,
+                "value": "OFF",
+                "unit": self.unit,
+                "active": False
+            }

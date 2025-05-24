@@ -16,9 +16,11 @@ class SensorManager:
     def __init__(self, config_path):
         self.sensors = []
         self.load_config(config_path)
+        self._task = None
+        self._stop_event = asyncio.Event()
 
     def load_config(self, path):
-        with open(path, 'r',encoding="utf-8") as f:
+        with open(path, 'r', encoding="utf-8") as f:
             config = json.load(f)
         for sensor_data in config:
             sensor_type = sensor_data.get("type").lower()
@@ -55,46 +57,31 @@ class SensorManager:
             if sensor.sensor_id == sensor_id:
                 sensor.start()
                 break
-
-    def print_all_readings(self):
+    def get_sensor_reading_by_id(self, sensor_id):
         for sensor in self.sensors:
-            try:
-                value = sensor.read_value()
-                print(f"[{sensor.name}] {value} {sensor.unit}")
-            except Exception as e:
-                print(f"[{sensor.name}] Błąd: {e}")
+            if sensor.sensor_id == sensor_id:
+                return sensor.get_status()
+        return None
+    
+    def get_all_readings(self):
+        return [sensor.get_status() for sensor in self.sensors]
 
-    def log_sensors_data(self):
-        logs = []
-        for sensor in self.sensors:
-            try:
-                value = sensor.read_value()
-                log_entry = {
-                    "sensor_id": sensor.sensor_id,
-                    "name": sensor.name,
-                    "value": value,
-                    "unit": sensor.unit
-                }
-                print(f"[{sensor.name}] {value} {sensor.unit}")
-                logs.append(log_entry)
-            except Exception as e:
-                error_entry = {
-                    "sensor_id": sensor.sensor_id,
-                    "name": sensor.name,
-                    "error": str(e)
-                }
-                print(f"Nie można odczytać {sensor.name}: {e}")
-                logs.append(error_entry)
-        return logs
-
-    async def log_all_readings(self, interval=1):
-        while True:
-            print("\n--- Odczyty sensorów ---")
+    async def _refresh_loop(self, interval=1):
+        while not self._stop_event.is_set():
             for sensor in self.sensors:
                 if sensor.active:
                     try:
-                        value = sensor.read_value()
-                        print(f"[{sensor.name}] {value} {sensor.unit}")
-                    except Exception as e:
-                        print(f"[{sensor.name}] Błąd: {e}")
+                        sensor.read_value()
+                    except Exception:
+                        pass
             await asyncio.sleep(interval)
+
+    def start_refresh_loop(self, interval=1):
+        if self._task is None or self._task.done():
+            self._stop_event.clear()
+            self._task = asyncio.create_task(self._refresh_loop(interval))
+
+    async def stop_refresh_loop(self):
+        if self._task:
+            self._stop_event.set()
+            await self._task

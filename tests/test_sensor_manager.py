@@ -1,84 +1,77 @@
 import unittest
+import os
 import json
+import asyncio
 from sensors.sensor_manager import SensorManager
 
-# Przykładowa konfiguracja sensorów w formacie JSON jako string
-SENSORS_JSON = """
-[
-    {
-        "id": "T1",
-        "name": "Czujnik temperatury",
-        "type": "temperature",
-        "unit": "°C",
-        "min_value": -10,
-        "max_value": 35,
-        "frequency": 2
-    },
-    {
-        "id": "H1",
-        "name": "Czujnik wilgotności",
-        "type": "humidity",
-        "unit": "%",
-        "min_value": 20,
-        "max_value": 90
-    },
-    {
-        "id": "P1",
-        "name": "Czujnik ciśnienia",
-        "type": "pressure",
-        "unit": "hPa",
-        "min_value": 970,
-        "max_value": 1030
-    },
-    {
-        "id": "L1",
-        "name": "Czujnik światła",
-        "type": "light",
-        "unit": "lx",
-        "min_value": 0,
-        "max_value": 10000
-    }
-]
-"""
-
-class TestSensorManager(unittest.TestCase):
-
+class TestSensorManager(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        # Zapisz JSON do pliku tymczasowego
-        with open("test_sensors.json", "w", encoding="utf-8") as f:
-            f.write(SENSORS_JSON)
+        # Tworzenie tymczasowej konfiguracji sensorów
+        self.test_config = [
+            {
+                "id": "1",
+                "type": "temperature",
+                "name": "Czujnik temperatury",
+                "unit": "°C",
+                "min_value": -10,
+                "max_value": 40
+            },
+            {
+                "id": "2",
+                "type": "humidity",
+                "name": "Czujnik wilgotności",
+                "unit": "%",
+                "min_value": 10,
+                "max_value": 90
+            }
+        ]
+        self.config_path = "tests/temp_test_config.json"
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            json.dump(self.test_config, f)
 
-        self.manager = SensorManager("test_sensors.json")
+        self.manager = SensorManager(self.config_path)
 
     def tearDown(self):
-        import os
-        os.remove("test_sensors.json")
+        if os.path.exists(self.config_path):
+            os.remove(self.config_path)
 
-    def test_load_sensors(self):
-        self.assertEqual(len(self.manager.sensors), 4)
-        self.assertTrue(any(s.name == "Czujnik temperatury" for s in self.manager.sensors))
-        self.assertTrue(any(s.name == "Czujnik wilgotności" for s in self.manager.sensors))
+    def test_load_config(self):
+        self.assertEqual(len(self.manager.sensors), 2)
+        self.assertEqual(self.manager.sensors[0].name, "Czujnik temperatury")
 
-    def test_start_stop_all(self):
+    def test_start_and_stop_all(self):
         self.manager.stop_all()
-        self.assertFalse(any(s.active for s in self.manager.sensors))
+        for sensor in self.manager.sensors:
+            self.assertFalse(sensor.active)
+
         self.manager.start_all()
-        self.assertTrue(all(s.active for s in self.manager.sensors))
+        for sensor in self.manager.sensors:
+            self.assertTrue(sensor.active)
 
-    def test_stop_single_sensor(self):
-        sensor_id = self.manager.sensors[0].sensor_id
-        self.manager.stop_sensor(sensor_id)
-        sensor = next(s for s in self.manager.sensors if s.sensor_id == sensor_id)
-        self.assertFalse(sensor.active)
+    def test_stop_and_start_sensor_by_id(self):
+        self.manager.stop_sensor("1")
+        self.assertFalse(self.manager.sensors[0].active)
+        self.manager.start_sensor("1")
+        self.assertTrue(self.manager.sensors[0].active)
 
-    def test_log_sensors_data(self):
-        self.manager.start_all()
-        log = self.manager.log_sensors_data()
-        self.assertIsInstance(log, list)
-        for entry in log:
-            self.assertIn("sensor_id", entry)
-            self.assertIn("name", entry)
-            self.assertTrue("value" in entry or "error" in entry)
+    def test_get_sensor_reading_by_id(self):
+        result = self.manager.get_sensor_reading_by_id("1")
+        self.assertIn("sensor_id", result)
+        self.assertEqual(result["sensor_id"], "1")
+        self.assertTrue(result["active"])
 
-if __name__ == "__main__":
-    unittest.main()
+    def test_get_all_readings(self):
+        results = self.manager.get_all_readings()
+        self.assertEqual(len(results), 2)
+        for reading in results:
+            self.assertIn("sensor_id", reading)
+
+    async def test_refresh_loop_updates_sensor_values(self):
+        sensor = self.manager.sensors[0]
+        initial_value = sensor.last_value
+        self.manager.start_refresh_loop(interval=0.1)
+        await asyncio.sleep(0.3)
+        await self.manager.stop_refresh_loop()
+        self.assertIsNotNone(sensor.last_value)
+        self.assertNotEqual(sensor.last_value, initial_value)
+
