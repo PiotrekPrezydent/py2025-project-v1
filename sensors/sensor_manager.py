@@ -3,7 +3,6 @@ from .temperature_sensor import TemperatureSensor
 from .humidity_sensor import HumiditySensor
 from .pressure_sensor import PressureSensor
 from .light_sensor import LightSensor
-import asyncio
 
 class SensorManager:
     SENSOR_TYPES = {
@@ -13,11 +12,10 @@ class SensorManager:
         "light": LightSensor
     }
 
-    def __init__(self, config_path):
+    def __init__(self, config_path, logger=None):
         self.sensors = []
+        self.logger = logger  # zapisujemy instancję loggera
         self.load_config(config_path)
-        self._sensor_tasks = {}
-        self._stop_event = asyncio.Event()
 
     def load_config(self, path):
         with open(path, 'r', encoding="utf-8") as f:
@@ -32,7 +30,7 @@ class SensorManager:
                     unit=sensor_data["unit"],
                     min_value=sensor_data["min_value"],
                     max_value=sensor_data["max_value"],
-                    frequency=sensor_data.get("frequency", 1)
+                    frequency=sensor_data["frequency"],
                 )
                 self.sensors.append(sensor)
             else:
@@ -57,32 +55,21 @@ class SensorManager:
             if sensor.sensor_id == sensor_id:
                 sensor.start()
                 break
-    def get_sensor_reading_by_id(self, sensor_id):
+
+    def log_sensor(self, sensor_id):
         for sensor in self.sensors:
             if sensor.sensor_id == sensor_id:
-                return sensor.get_status()
-        return None
-    
-    def get_all_readings(self):
-        return [sensor.get_status() for sensor in self.sensors]
-    
-    def start_refresh_loop(self):
-        self._stop_event.clear()
+                message = str(sensor)
+                if self.logger:
+                    self.logger.info(message)
+                else:
+                    print(message)
+                break
+
+    def log_all_sensors(self):
         for sensor in self.sensors:
-            if sensor.sensor_id not in self._sensor_tasks or self._sensor_tasks[sensor.sensor_id].done():
-                task = asyncio.create_task(self._sensor_loop(sensor))
-                self._sensor_tasks[sensor.sensor_id] = task
-
-    async def _sensor_loop(self, sensor):
-        while not self._stop_event.is_set():
-            if sensor.active:
-                try:
-                    sensor.read_value()
-                except Exception:
-                    pass
-            await asyncio.sleep(sensor.frequency)
-
-    async def stop_refresh_loop(self):
-        self._stop_event.set()
-        await asyncio.gather(*self._sensor_tasks.values(), return_exceptions=True)
-        self._sensor_tasks.clear()
+            message = str(sensor)
+            if self.logger:
+                self.logger.info(message)
+            else:
+                print(message)

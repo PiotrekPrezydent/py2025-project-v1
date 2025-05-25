@@ -24,7 +24,7 @@
         "unit": "hPa",
         "min_value": 970,
         "max_value": 1030,
-        "frequency": 3
+        "frequency": 10
     },
     {
         "id": "L1",

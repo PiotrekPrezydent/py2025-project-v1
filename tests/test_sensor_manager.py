@@ -1,79 +1,78 @@
 import unittest
-import os
-import json
-import asyncio
+from unittest.mock import MagicMock, patch, mock_open
 from sensors.sensor_manager import SensorManager
+from sensors.temperature_sensor import TemperatureSensor
+from sensors.humidity_sensor import HumiditySensor
+import json
 
-class TestSensorManager(unittest.IsolatedAsyncioTestCase):
-    def setUp(self):
-        # Tworzenie tymczasowej konfiguracji sensorów z różną częstotliwością
-        self.test_config = [
-            {
-                "id": "1",
-                "type": "temperature",
-                "name": "Czujnik temperatury",
-                "unit": "°C",
-                "min_value": -10,
-                "max_value": 40,
-                "frequency": 0.1
-            },
-            {
-                "id": "2",
-                "type": "humidity",
-                "name": "Czujnik wilgotności",
-                "unit": "%",
-                "min_value": 10,
-                "max_value": 90,
-                "frequency": 0.2
-            }
-        ]
-        self.config_path = "tests/temp_test_config.json"
-        with open(self.config_path, "w", encoding="utf-8") as f:
-            json.dump(self.test_config, f)
+SAMPLE_CONFIG = json.dumps([
+    {
+        "id": 1,
+        "name": "Temp1",
+        "type": "temperature",
+        "unit": "C",
+        "min_value": -10,
+        "max_value": 40,
+        "frequency": 2
+    },
+    {
+        "id": 2,
+        "name": "Humidity1",
+        "type": "humidity",
+        "unit": "%",
+        "min_value": 20,
+        "max_value": 90,
+        "frequency": 3
+    }
+])
 
-        self.manager = SensorManager(self.config_path)
+class TestSensorManager(unittest.TestCase):
 
-    def tearDown(self):
-        if os.path.exists(self.config_path):
-            os.remove(self.config_path)
+    @patch("builtins.open", new_callable=mock_open, read_data=SAMPLE_CONFIG)
+    def setUp(self, mock_file):
+        self.logger = MagicMock()
+        self.manager = SensorManager("dummy_path.json", logger=self.logger)
 
-    def test_load_config(self):
+    def test_load_config_loads_sensors(self):
         self.assertEqual(len(self.manager.sensors), 2)
-        self.assertEqual(self.manager.sensors[0].name, "Czujnik temperatury")
+        self.assertIsInstance(self.manager.sensors[0], TemperatureSensor)
+        self.assertIsInstance(self.manager.sensors[1], HumiditySensor)
 
-    def test_start_and_stop_all(self):
-        self.manager.stop_all()
+    def test_start_all_starts_all_sensors(self):
         for sensor in self.manager.sensors:
-            self.assertFalse(sensor.active)
-
+            sensor.start = MagicMock()
         self.manager.start_all()
         for sensor in self.manager.sensors:
-            self.assertTrue(sensor.active)
+            sensor.start.assert_called_once()
 
-    def test_stop_and_start_sensor_by_id(self):
-        self.manager.stop_sensor("1")
-        self.assertFalse(self.manager.sensors[0].active)
-        self.manager.start_sensor("1")
-        self.assertTrue(self.manager.sensors[0].active)
+    def test_stop_all_stops_all_sensors(self):
+        for sensor in self.manager.sensors:
+            sensor.stop = MagicMock()
+        self.manager.stop_all()
+        for sensor in self.manager.sensors:
+            sensor.stop.assert_called_once()
 
-    def test_get_sensor_reading_by_id(self):
-        result = self.manager.get_sensor_reading_by_id("1")
-        self.assertIn("sensor_id", result)
-        self.assertEqual(result["sensor_id"], "1")
-        self.assertTrue(result["active"])
-
-    def test_get_all_readings(self):
-        results = self.manager.get_all_readings()
-        self.assertEqual(len(results), 2)
-        for reading in results:
-            self.assertIn("sensor_id", reading)
-
-    async def test_refresh_loop_updates_sensor_values(self):
+    def test_start_sensor_starts_specific_sensor(self):
         sensor = self.manager.sensors[0]
-        self.assertIsNone(sensor.last_value)
+        sensor.start = MagicMock()
+        self.manager.start_sensor(sensor.sensor_id)
+        sensor.start.assert_called_once()
 
-        self.manager.start_refresh_loop()
-        await asyncio.sleep(0.3)  # dłużej niż frequency (0.1) => co najmniej 2 odczyty
-        await self.manager.stop_refresh_loop()
+    def test_stop_sensor_stops_specific_sensor(self):
+        sensor = self.manager.sensors[1]
+        sensor.stop = MagicMock()
+        self.manager.stop_sensor(sensor.sensor_id)
+        sensor.stop.assert_called_once()
 
-        self.assertIsNotNone(sensor.last_value)
+    def test_log_sensor_uses_logger(self):
+        sensor = self.manager.sensors[0]
+        self.manager.log_sensor(sensor.sensor_id)
+        self.logger.info.assert_called_with(str(sensor))
+
+    def test_log_all_sensors_uses_logger(self):
+        self.manager.log_all_sensors()
+        calls = [unittest.mock.call(str(sensor)) for sensor in self.manager.sensors]
+        self.logger.info.assert_has_calls(calls, any_order=True)
+
+if __name__ == "__main__":
+    unittest.main()

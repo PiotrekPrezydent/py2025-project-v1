@@ -1,4 +1,5 @@
 import random
+import asyncio
 
 class Sensor:
     def __init__(self, sensor_id, name, unit, min_value, max_value, frequency=1):
@@ -8,19 +9,24 @@ class Sensor:
         self.min_value = min_value
         self.max_value = max_value
         self.frequency = frequency
-        self.active = True
+        self.active = False
         self.last_value = None
+        self._callbacks = []
+        self._stop_event = asyncio.Event()
+        self._stop_event.set()
+        self._task = None
 
     def read_value(self):
         if not self.active:
             raise Exception(f"Czujnik {self.name} jest wyłączony.")
-        value = float(random.uniform(self.min_value, self.max_value))
+        value = random.uniform(self.min_value, self.max_value)
         self.last_value = value
         return value
 
     def calibrate(self, calibration_factor):
         if self.last_value is None:
             self.read_value()
+
         self.last_value *= calibration_factor
         return self.last_value
 
@@ -30,38 +36,29 @@ class Sensor:
         return self.last_value
 
     def start(self):
-        self.active = True
+        if not self.active:
+            self.active = True
+            self._stop_event.clear()
+            self._task = asyncio.create_task(self._run_loop())
 
     def stop(self):
-        self.active = False
-
-    def __str__(self):
-        return f"Sensor(id={self.sensor_id}, name={self.name}, unit={self.unit})"
-    
-    def get_status(self):
         if self.active:
-            try:
-                value = self.get_last_value()
-                return {
-                    "sensor_id": self.sensor_id,
-                    "name": self.name,
-                    "value": value,
-                    "unit": self.unit,
-                    "active": True
-                }
-            except Exception as e:
-                return {
-                    "sensor_id": self.sensor_id,
-                    "name": self.name,
-                    "error": str(e),
-                    "unit": self.unit,
-                    "active": True
-                }
-        else:
-            return {
-                "sensor_id": self.sensor_id,
-                "name": self.name,
-                "value": "OFF",
-                "unit": self.unit,
-                "active": False
-            }
+            self.active = False
+            self._stop_event.set()
+            if self._task:
+                self._task.cancel()
+
+    async def _run_loop(self):
+        try:
+            while not self._stop_event.is_set():
+                self.read_value()
+                await asyncio.sleep(self.frequency)
+        except asyncio.CancelledError:
+            pass
+        
+    def __str__(self):
+        status = "ON" if self.active else "OFF"
+        value = self.last_value if self.last_value is not None else "None"
+        return (f"Sensor(id={self.sensor_id}, name={self.name}, unit={self.unit}, "
+                f"status={status}, last_value={value})")
+    

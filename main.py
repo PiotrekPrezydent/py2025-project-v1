@@ -1,47 +1,34 @@
 import asyncio
-from sensors.sensor_manager import SensorManager
 import unittest
+from sensors.sensor_manager import SensorManager
 
 CONFIG_PATH = "./configs/sensors_config.json"
+
 
 async def main():
     manager = SensorManager(CONFIG_PATH)
     manager.start_all()
-    manager.start_refresh_loop()
-
-    readings = manager.get_all_readings()
-    print("--- Pierwszy odczyt ---")
-    for r in readings:
-        print(r)
-
-    manager.stop_sensor(1)
-    print("Wyłączono sensor o id 1")
-
-    await asyncio.sleep(3)
-
-    readings = manager.get_all_readings()
-    print("--- Drugi odczyt ---")
-    for r in readings:
-        print(r)
-
-    await manager.stop_refresh_loop()
+    while True:
+        manager.log_all_sensors()
+        print()
+        await asyncio.sleep(1)
 
 if __name__ == "__main__":
     # Załaduj wszystkie testy z plików testowych
     loader = unittest.TestLoader()
     suite = unittest.TestSuite()
 
-    # Dodaj testy z konkretnych plików
-    suite.addTests(loader.discover('./tests', pattern='test_sensors.py'))
-    suite.addTests(loader.discover('./tests', pattern='test_sensor_manager.py'))
+    # Dodaj testy z katalogu ./tests
+    suite.addTests(loader.discover('./tests', pattern='test_*.py'))
 
     # Uruchom testy
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
 
     if result.wasSuccessful():
-        print("Wszystkie testy przeszły pomyślnie!")
+        print("\n✅ Wszystkie testy przeszły pomyślnie!\n")
     else:
-        print("Niektóre testy zakończyły się niepowodzeniem.")
+        print("\n❌ Niektóre testy zakończyły się niepowodzeniem.\n")
         exit()
+
     asyncio.run(main())

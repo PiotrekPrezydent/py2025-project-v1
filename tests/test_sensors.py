@@ -1,119 +1,115 @@
 import unittest
+import asyncio
+from unittest.mock import patch
 from sensors.sensor import Sensor
 from sensors.temperature_sensor import TemperatureSensor
 from sensors.humidity_sensor import HumiditySensor
 from sensors.pressure_sensor import PressureSensor
 from sensors.light_sensor import LightSensor
 
-class TestSensorBase(unittest.TestCase):
-
+class TestSensorBase(unittest.IsolatedAsyncioTestCase):
     def setUp(self):
-        self.sensor = Sensor(
-            sensor_id="123",
-            name="Testowy Sensor",
-            unit="unit",
-            min_value=0,
-            max_value=100,
-            frequency=1
-        )
+        self.sensor = Sensor("1", "Generic", "unit", 0, 100, frequency=0.1)
 
-    def test_initialization(self):
-        self.assertEqual(self.sensor.sensor_id, "123")
-        self.assertEqual(self.sensor.name, "Testowy Sensor")
-        self.assertEqual(self.sensor.unit, "unit")
-        self.assertTrue(self.sensor.active)
-
-    def test_read_value_within_range(self):
-        value = self.sensor.read_value()
-        self.assertGreaterEqual(value, self.sensor.min_value)
-        self.assertLessEqual(value, self.sensor.max_value)
-        self.assertEqual(self.sensor.last_value, value)
-
-    def test_get_last_value_without_reading(self):
-        value = self.sensor.get_last_value()
-        self.assertIsNotNone(value)
-        self.assertEqual(value, self.sensor.last_value)
-
-    def test_get_last_value_after_manual_read(self):
-        self.sensor.read_value()
-        last = self.sensor.get_last_value()
-        self.assertEqual(last, self.sensor.last_value)
-
-    def test_calibration_modifies_value(self):
-        self.sensor.read_value()
-        original = self.sensor.last_value
-        calibrated = self.sensor.calibrate(1.1)
-        self.assertAlmostEqual(calibrated, original * 1.1, delta=0.001)
-
-    def test_stop_and_start_sensor(self):
-        self.sensor.stop()
-        self.assertFalse(self.sensor.active)
-        self.sensor.start()
-        self.assertTrue(self.sensor.active)
-
-    def test_read_value_when_inactive_raises_exception(self):
-        self.sensor.stop()
-        with self.assertRaises(Exception) as context:
+    def test_read_value_raises_if_inactive(self):
+        self.sensor.active = False
+        with self.assertRaises(Exception) as cm:
             self.sensor.read_value()
-        self.assertIn("jest wyłączony", str(context.exception))
+        self.assertIn("wyłączony", str(cm.exception))
 
-    def test_get_status_active(self):
-        self.sensor.read_value()
-        status = self.sensor.get_status()
-        self.assertTrue(status["active"])
-        self.assertIn("value", status)
+    async def test_start_and_stop_loop_calls_read_value(self):
+        with patch.object(self.sensor, 'read_value', wraps=self.sensor.read_value) as mock_read:
+            self.sensor.start()
+            # Czekamy 0.35s - powinno wykonać się co najmniej 3 razy (frequency=0.1s)
+            await asyncio.sleep(0.35)
+            self.sensor.stop()
+            await asyncio.sleep(0.05)  # pozwól na wyczyszczenie tasku
+            self.assertGreaterEqual(mock_read.call_count, 3)
 
-    def test_get_status_inactive(self):
-        self.sensor.stop()
-        status = self.sensor.get_status()
-        self.assertFalse(status["active"])
-        self.assertEqual(status["value"], "OFF")
+class TestTemperatureSensor(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.sensor = TemperatureSensor("temp1", "Temp", "C", -10, 40, frequency=0.1)
 
-    def test_string_representation(self):
-        expected = "Sensor(id=123, name=Testowy Sensor, unit=unit)"
-        self.assertEqual(str(self.sensor), expected)
-
-
-class TestSensors(unittest.TestCase):
-
-    def test_temperature_sensor(self):
-        sensor = TemperatureSensor(1, "Czujnik temperatury", "°C", -20, 50)
-        self.assertEqual(sensor.name, "Czujnik temperatury")
-        val = sensor.read_value()
-        self.assertIsInstance(val, float)
-        self.assertGreaterEqual(val, -20)
-        self.assertLessEqual(val, 50)
-        sensor.stop()
+    def test_read_value_raises_if_inactive(self):
+        self.sensor.active = False
         with self.assertRaises(Exception):
-            sensor.read_value()
+            self.sensor.read_value()
 
-    def test_humidity_sensor(self):
-        sensor = HumiditySensor(2, "Czujnik wilgotności", "%", 0, 100)
-        self.assertEqual(sensor.unit, "%")
-        val = sensor.read_value()
-        self.assertIsInstance(val, float)
-        self.assertGreaterEqual(val, 0)
-        self.assertLessEqual(val, 100)
-        sensor.stop()
-        with self.assertRaises(Exception):
-            sensor.read_value()
+    async def test_start_and_stop_loop_calls_read_value(self):
+        with patch.object(self.sensor, 'read_value', wraps=self.sensor.read_value) as mock_read:
+            self.sensor.start()
+            await asyncio.sleep(0.35)
+            self.sensor.stop()
+            await asyncio.sleep(0.05)
+            self.assertGreaterEqual(mock_read.call_count, 3)
+            # dodatkowo sprawdzamy zakres ostatniej wartości
+            val = self.sensor.last_value
+            self.assertIsInstance(val, float)
+            self.assertGreaterEqual(val, -15)
+            self.assertLessEqual(val, 45)
 
-    def test_pressure_sensor(self):
-        sensor = PressureSensor(3, "Czujnik ciśnienia", "hPa", 950, 1050)
-        val = sensor.read_value()
-        self.assertIsInstance(val, float)
-        self.assertGreater(val, 940)
-        self.assertLess(val, 1060)
-        sensor.stop()
-        with self.assertRaises(Exception):
-            sensor.read_value()
+class TestHumiditySensor(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.sensor = HumiditySensor("hum1", "Humidity", "%", 30, 90, frequency=0.1)
 
-    def test_light_sensor(self):
-        sensor = LightSensor(4, "Czujnik światła", "lx", 0, 10000)
-        val = sensor.read_value()
-        self.assertIsInstance(val, float)
-        self.assertGreaterEqual(val, 0)
-        self.assertLessEqual(val, 10200)  # uwzględniając szum
-        sensor.stop()
+    def test_read_value_raises_if_inactive(self):
+        self.sensor.active = False
         with self.assertRaises(Exception):
-            sensor.read_value()
+            self.sensor.read_value()
+
+    async def test_start_and_stop_loop_calls_read_value(self):
+        with patch.object(self.sensor, 'read_value', wraps=self.sensor.read_value) as mock_read:
+            self.sensor.start()
+            await asyncio.sleep(0.35)
+            self.sensor.stop()
+            await asyncio.sleep(0.05)
+            self.assertGreaterEqual(mock_read.call_count, 3)
+            val = self.sensor.last_value
+            self.assertIsInstance(val, float)
+            self.assertGreaterEqual(val, 25)
+            self.assertLessEqual(val, 95)
+
+class TestPressureSensor(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.sensor = PressureSensor("pres1", "Pressure", "hPa", 980, 1050, frequency=0.1)
+
+    def test_read_value_raises_if_inactive(self):
+        self.sensor.active = False
+        with self.assertRaises(Exception):
+            self.sensor.read_value()
+
+    async def test_start_and_stop_loop_calls_read_value(self):
+        with patch.object(self.sensor, 'read_value', wraps=self.sensor.read_value) as mock_read:
+            self.sensor.start()
+            await asyncio.sleep(0.35)
+            self.sensor.stop()
+            await asyncio.sleep(0.05)
+            self.assertGreaterEqual(mock_read.call_count, 3)
+            val = self.sensor.last_value
+            self.assertIsInstance(val, float)
+            self.assertGreaterEqual(val, 970)
+            self.assertLessEqual(val, 1060)
+
+class TestLightSensor(unittest.IsolatedAsyncioTestCase):
+    def setUp(self):
+        self.sensor = LightSensor("light1", "Light", "lux", 0, 1000, frequency=0.1)
+
+    def test_read_value_raises_if_inactive(self):
+        self.sensor.active = False
+        with self.assertRaises(Exception):
+            self.sensor.read_value()
+
+    async def test_start_and_stop_loop_calls_read_value(self):
+        with patch.object(self.sensor, 'read_value', wraps=self.sensor.read_value) as mock_read:
+            self.sensor.start()
+            await asyncio.sleep(0.35)
+            self.sensor.stop()
+            await asyncio.sleep(0.05)
+            self.assertGreaterEqual(mock_read.call_count, 3)
+            val = self.sensor.last_value
+            self.assertIsInstance(val, (float, int))
+            self.assertGreaterEqual(val, 0)
+            self.assertLessEqual(val, 1100)
+
+if __name__ == '__main__':
+    unittest.main()

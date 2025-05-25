@@ -10,4 +10,3 @@ class HumiditySensor(Sensor):
         temp_effect = random.uniform(-5, 5)
         base_humidity = random.uniform(self.min_value, self.max_value)
         self.last_value = round(base_humidity + temp_effect, 2)
-        return self.last_value
