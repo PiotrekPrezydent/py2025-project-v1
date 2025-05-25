@@ -34,6 +34,25 @@ class Sensor:
         if self.last_value is None:
             return self.read_value()
         return self.last_value
+    
+    def register_callback(self, callback):
+        if callable(callback):
+            self._callbacks.append(callback)
+        else:
+            raise ValueError("Callback musi być callable")
+        
+    def unregister_callback(self, callback):
+        try:
+            self._callbacks.remove(callback)
+        except ValueError:
+            pass
+
+    def _notify_callbacks(self):
+        for cb in self._callbacks:
+            try:
+                cb()
+            except Exception as e:
+                print(f"Błąd podczas wywołania callbacku: {e}")
 
     def start(self):
         if not self.active:
@@ -52,7 +71,9 @@ class Sensor:
         try:
             while not self._stop_event.is_set():
                 self.read_value()
+                self._notify_callbacks() 
                 await asyncio.sleep(self.frequency)
+
         except asyncio.CancelledError:
             pass
         
