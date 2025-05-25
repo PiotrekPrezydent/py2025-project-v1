@@ -1,5 +1,6 @@
 import random
 import asyncio
+import datetime
 
 class Sensor:
     def __init__(self, sensor_id, name, unit, min_value, max_value, frequency=1):
@@ -48,11 +49,9 @@ class Sensor:
             pass
 
     def _notify_callbacks(self):
+        timestamp = datetime.datetime.now()
         for cb in self._callbacks:
-            try:
-                cb()
-            except Exception as e:
-                print(f"Błąd podczas wywołania callbacku: {e}")
+            cb(self.sensor_id, timestamp, self.get_last_value(), self.unit)
 
     def start(self):
         if not self.active:
@@ -71,10 +70,10 @@ class Sensor:
         try:
             while not self._stop_event.is_set():
                 self.read_value()
-                self._notify_callbacks() 
+                self._notify_callbacks()
                 await asyncio.sleep(self.frequency)
-
-        except asyncio.CancelledError:
+        except Exception as e:
+            print(e)
             pass
         
     def __str__(self):

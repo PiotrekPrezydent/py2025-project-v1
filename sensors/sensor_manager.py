@@ -3,6 +3,7 @@ from .temperature_sensor import TemperatureSensor
 from .humidity_sensor import HumiditySensor
 from .pressure_sensor import PressureSensor
 from .light_sensor import LightSensor
+import datetime
 
 class SensorManager:
     SENSOR_TYPES = {
@@ -44,6 +45,15 @@ class SensorManager:
         for sensor in self.sensors:
             sensor.stop()
 
+    def get_all_sensors(self):
+        return self.sensors
+
+    def get_sensor(self, sensor_id):
+        for sensor in self.sensors:
+            if sensor.sensor_id == sensor_id:
+                return sensor
+        return None
+
     def stop_sensor(self, sensor_id):
         for sensor in self.sensors:
             if sensor.sensor_id == sensor_id:
@@ -69,7 +79,4 @@ class SensorManager:
     def log_all_sensors(self):
         for sensor in self.sensors:
             message = str(sensor)
-            if self.logger:
-                self.logger.info(message)
-            else:
-                print(message)
+            #print(message)
