@@ -145,7 +145,8 @@ class Logger:
             if i==1:
                 name += str("-" + str(i))
             else:
-                name = name[:-1]
+                i_len = len(str(i))
+                name = name[:-i_len]
                 name+=str(i)
             i+=1
 
