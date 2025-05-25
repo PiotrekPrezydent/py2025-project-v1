@@ -6,22 +6,21 @@ import matplotlib.dates as mdates
 import datetime
 
 class SensorPlotView(ttk.Frame):
-    def __init__(self, parent, sensor, max_points=60, update_interval=None):
+    def __init__(self, parent, sensor, max_points=100):
         super().__init__(parent)
         self.sensor = sensor
         self.max_points = max_points
 
-        # Jeśli update_interval nie podano, to pobierz go z sensora (frequency w sekundach)
-        if update_interval is None:
-            self.update_interval = int(self.sensor.frequency * 1000)  # ms
-        else:
-            self.update_interval = update_interval
+        # Inicjalizacja historii z sensora
         self.times = []
         self.values = []
+        for timestamp, value in list(sensor.history)[-self.max_points:]:  # ostatnie max_points danych
+            self.times.append(timestamp)
+            self.values.append(value)
 
         # Tworzymy wykres
         self.fig, self.ax = plt.subplots(figsize=(6, 3))
-        self.line, = self.ax.plot_date([], [], '-', label=f"Wartość {self.sensor.name}")
+        self.line, = self.ax.plot_date(self.times, self.values, '-', label=f"Wartość {self.sensor.name}")
         self.ax.set_xlabel("Czas")
         self.ax.set_ylabel(f"{self.sensor.name} [{self.sensor.unit}]")
         self.ax.set_title(f"Wartość czujnika: {self.sensor.name} (ID: {self.sensor.sensor_id})")
@@ -34,7 +33,7 @@ class SensorPlotView(ttk.Frame):
         self.canvas.get_tk_widget().pack(fill="both", expand=True)
 
         # Start aktualizacji
-        self.after(self.update_interval, self.update_plot)
+        self.after(int(self.sensor.frequency * 1000) , self.update_plot)
 
     def update_plot(self):
         try:
@@ -65,4 +64,4 @@ class SensorPlotView(ttk.Frame):
             self.canvas.draw()
 
         # Zaplanuj kolejną aktualizację wg frequency
-        self.after(self.update_interval, self.update_plot)
+        self.after(int(self.sensor.frequency * 1000), self.update_plot)

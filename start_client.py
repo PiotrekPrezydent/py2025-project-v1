@@ -10,9 +10,8 @@ CONFIG_PATH = "./configs/sensors_config.json"
 LOGGER_CONFIG_PATH = "./configs/logger_config.json"  # plik konfig dla loggera
 
 async def main():
-    # client = NetworkClient()
-    # client.connect()
-    client = None
+    client = NetworkClient()
+    client.connect()
     logger = Logger(LOGGER_CONFIG_PATH, client=client)
     logger.start()
 
@@ -22,9 +21,8 @@ async def main():
 
     gui = GUI(manager)
     await gui.async_mainloop()
-
-
- #   client.close()
+    print("end")
+    client.close()
 
 if __name__ == "__main__":
     # Uruchom testy
