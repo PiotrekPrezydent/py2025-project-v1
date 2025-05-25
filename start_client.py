@@ -9,33 +9,32 @@ CONFIG_PATH = "./configs/sensors_config.json"
 LOGGER_CONFIG_PATH = "./configs/logger_config.json"  # plik konfig dla loggera
 
 async def main():
-    # logger = Logger(LOGGER_CONFIG_PATH)
-    # logger.start()
-    
-    # manager = SensorManager(CONFIG_PATH)
-    
-    # # Rejestracja callbacka logowania do każdego sensora
-    # for sensor in manager.get_all_sensors():
-    #     sensor.register_callback(
-    #         lambda timestamp, sensor_id, name, value, unit, logger=logger: 
-    #             logger.log_reading(timestamp, sensor_id, name, value, unit)
-    #     )
-    
-    # manager.start_all()
-    
-    # try:
-    #     for i in range(5):
-    #         manager.log_all_sensors()  # to wyświetla w konsoli statusy sensorów
-    #         await asyncio.sleep(1)
-    # finally:
-    #     print("stop")
-    #     manager.stop_all()
-    #     logger.stop()
     client = NetworkClient()
     client.connect()
-    success = client.send({"event": "test", "message": "Hello from client"})
-    print("Wysłano dane:", success)
+    logger = Logger(LOGGER_CONFIG_PATH,client=client)
+    logger.start()
+    # Inicjalizacja SensorManager z klientem
+    manager = SensorManager(CONFIG_PATH, client=client)
+    manager.register_callbacks(logger)
+    print("➡️  Uruchamiam wszystkie sensory...")
+    manager.start_all()
+
+    await asyncio.sleep(3)
+
+    if manager.sensors:
+        first_sensor = manager.sensors[0]
+        print(f"⛔ Wyłączam sensor: {first_sensor.sensor_id}")
+        manager.stop_sensor(first_sensor.sensor_id)
+    else:
+        print("❗ Brak sensorów do zatrzymania.")
+
+    await asyncio.sleep(1)
+
+    print("⛔ Wyłączam wszystkie sensory...")
+    manager.stop_all()
+    logger.stop()
     client.close()
+    print("✅ Zakończono")
 
 if __name__ == "__main__":
     # Uruchom testy

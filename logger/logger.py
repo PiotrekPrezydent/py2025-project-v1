@@ -6,9 +6,10 @@ import zipfile
 from datetime import datetime, timedelta
 from typing import Optional, Iterator, Dict
 from pathlib import Path
+from network.client import NetworkClient  
 
 class Logger:
-    def __init__(self, config_path: str):
+    def __init__(self, config_path: str, client: Optional[NetworkClient] = None):
         # Wczytaj konfigurację JSON
         with open(config_path, 'r', encoding='utf-8') as f:
             cfg = json.load(f)
@@ -31,6 +32,7 @@ class Logger:
         self.current_filename = None
         self.current_file_start_time = None
         self.lines_written = 0
+        self.client = client
 
     def start(self) -> None:
         now = datetime.now()
@@ -48,15 +50,27 @@ class Logger:
             # Licz linię w pliku (bez nagłówka)
             self.lines_written = sum(1 for _ in open(self.current_filename, 'r', encoding='utf-8')) - 1
 
+        self._send_event("start", {
+            "filename": self.current_filename,
+            "buffer_size": self.buffer_size
+        })
+
     def stop(self) -> None:
         self._flush_buffer()
         if self.current_file:
             self.current_file.close()
             self.current_file = None
 
+        self._send_event("stop", {
+            "filename": self.current_filename,
+            "buffer_size": self.buffer_size
+        })
+
     def log_reading(self, timestamp: datetime,sensor_id: str,sensor_name: str, value: float, unit: str) -> None:
         row = [timestamp.isoformat(), sensor_id,sensor_name, value, unit]
         self.buffer.append(row)
+        if not self.current_file:
+            return
         if len(self.buffer) >= self.buffer_size:
             self._flush_buffer()
         if self._should_rotate():
@@ -92,6 +106,7 @@ class Logger:
         self.lines_written += len(self.buffer)
         self.current_file.flush()
         self.buffer.clear()
+        self._send_event("flush", {"rows": len(self.buffer)})
 
     def _should_rotate(self) -> bool:
         # Rotacja co rotate_every_hours
@@ -116,35 +131,37 @@ class Logger:
         self._archive()
         self._clean_old_archives()
         self.start()
+        self._send_event("rotate", {"filename": self.current_filename})
 
     def _archive(self):
         # Przenieś i spakuj aktualny plik do archive/
         base_name = os.path.basename(self.current_filename)
         archive_path = os.path.join(self.archive_dir, base_name)
         name = archive_path[0:-4]
-        print(name)
         i=1
         while True:
             if not os.path.isfile(name + ".csv.zip"):
                 break
             if i==1:
-                name += "-" + str(i)
+                name += str("-" + str(i))
             else:
-                name[-1] = str(i)
+                name = name[:-1]
+                name+=str(i)
             i+=1
 
         zip_path = name + ".csv.zip"
         shutil.move(self.current_filename, archive_path)
         
         # Kompresja zip
-
         with zipfile.ZipFile(zip_path, mode='w', compression=zipfile.ZIP_DEFLATED) as zipf:
             zipf.write(archive_path, arcname=base_name)
         os.remove(archive_path)
+        self._send_event("archive", {"zip_path": zip_path})
 
     def _clean_old_archives(self):
         now = datetime.now()
         cutoff = now - timedelta(days=self.retention_days)
+        removed = []
         for filename in os.listdir(self.archive_dir):
             if not filename.endswith(".zip"):
                 continue
@@ -152,6 +169,8 @@ class Logger:
             file_mtime = datetime.fromtimestamp(os.path.getmtime(full_path))
             if file_mtime < cutoff:
                 os.remove(full_path)
+                removed.append(filename)
+        self._send_event("cleanup", {"removed_files": removed})
 
     def _read_file(self, filepath: str, start: datetime, end: datetime, sensor_id: Optional[str]) -> Iterator[Dict]:
         with open(filepath, 'r', encoding='utf-8') as f:
@@ -195,3 +214,17 @@ class Logger:
                             }
                         except Exception:
                             continue
+
+    def _send_event(self, event: str, details: Optional[dict] = None):
+        if self.client is None:
+            return
+        message = {
+            "type": "logger_event",
+            "event": event,
+            "timestamp": datetime.now().isoformat(),
+            "details": details or {}
+        }
+        try:
+            self.client.send(message)
+        except Exception as e:
+            print(f"[Logger] Błąd wysyłania eventu '{event}': {e}")

@@ -52,14 +52,26 @@ class NetworkServer:
                 while not data.endswith(b"\n"):
                     part = client_socket.recv(1024)
                     if not part:
-                        break
+                        if not data:
+                            self.logger.warning(f"Połączenie z {addr} zamknięte bez danych.")
+                        else:
+                            self.logger.warning(f"Połączenie z {addr} zakończone w trakcie przesyłania danych.")
+                        return  # zakończ wątek klienta
+
                     data += part
 
-                message = json.loads(data.decode())
+                try:
+                    message = json.loads(data.decode())
+                except json.JSONDecodeError as e:
+                    self.logger.error(f"Nieprawidłowy JSON od {addr}: {e}")
+                    return
+
                 print(f"[RECEIVED from {addr}]:")
                 for k, v in message.items():
                     print(f"  {k}: {v}")
 
                 client_socket.sendall(b"ACK\n")
+
             except Exception as e:
-                print(f"[ERROR] Błąd klienta {addr}: {e}", file=sys.stderr)
+                self.logger.error(f"[ERROR] Błąd klienta {addr}: {e}")
+
