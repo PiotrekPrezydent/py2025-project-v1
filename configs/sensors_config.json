@@ -6,7 +6,7 @@
         "unit": "°C",
         "min_value": -10,
         "max_value": 35,
-        "frequency": 2
+        "frequency": 0.1
     },
     {
         "id": "H1",
@@ -24,7 +24,7 @@
         "unit": "hPa",
         "min_value": 970,
         "max_value": 1030,
-        "frequency": 10
+        "frequency": 100
     },
     {
         "id": "L1",

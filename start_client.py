@@ -4,37 +4,27 @@ from sensors.sensor_manager import SensorManager
 from logger.logger import Logger 
 from datetime import datetime
 from network.client import NetworkClient
+from gui.gui import GUI
 
 CONFIG_PATH = "./configs/sensors_config.json"
 LOGGER_CONFIG_PATH = "./configs/logger_config.json"  # plik konfig dla loggera
 
 async def main():
-    client = NetworkClient()
-    client.connect()
-    logger = Logger(LOGGER_CONFIG_PATH,client=client)
+    # client = NetworkClient()
+    # client.connect()
+    client = None
+    logger = Logger(LOGGER_CONFIG_PATH, client=client)
     logger.start()
-    # Inicjalizacja SensorManager z klientem
+
     manager = SensorManager(CONFIG_PATH, client=client)
     manager.register_callbacks(logger)
-    print("➡️  Uruchamiam wszystkie sensory...")
     manager.start_all()
 
-    await asyncio.sleep(3)
+    gui = GUI(manager)
+    await gui.async_mainloop()
 
-    if manager.sensors:
-        first_sensor = manager.sensors[0]
-        print(f"⛔ Wyłączam sensor: {first_sensor.sensor_id}")
-        manager.stop_sensor(first_sensor.sensor_id)
-    else:
-        print("❗ Brak sensorów do zatrzymania.")
 
-    await asyncio.sleep(1)
-
-    print("⛔ Wyłączam wszystkie sensory...")
-    manager.stop_all()
-    logger.stop()
-    client.close()
-    print("✅ Zakończono")
+ #   client.close()
 
 if __name__ == "__main__":
     # Uruchom testy
