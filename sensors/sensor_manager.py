@@ -13,9 +13,8 @@ class SensorManager:
         "light": LightSensor
     }
 
-    def __init__(self, config_path, logger=None):
+    def __init__(self, config_path):
         self.sensors = []
-        self.logger = logger  # zapisujemy instancję loggera
         self.load_config(config_path)
 
     def load_config(self, path):
@@ -70,13 +69,9 @@ class SensorManager:
         for sensor in self.sensors:
             if sensor.sensor_id == sensor_id:
                 message = str(sensor)
-                if self.logger:
-                    self.logger.info(message)
-                else:
-                    print(message)
-                break
+                print(message)
 
     def log_all_sensors(self):
         for sensor in self.sensors:
             message = str(sensor)
-            #print(message)
+            print(message)

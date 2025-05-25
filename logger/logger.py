@@ -5,6 +5,7 @@ import shutil
 import zipfile
 from datetime import datetime, timedelta
 from typing import Optional, Iterator, Dict
+from pathlib import Path
 
 class Logger:
     def __init__(self, config_path: str):
@@ -41,7 +42,7 @@ class Logger:
         self.current_writer = csv.writer(self.current_file)
         if not file_exists:
             # Zapisz nagłówek
-            self.current_writer.writerow(["timestamp", "sensor_id", "value", "unit"])
+            self.current_writer.writerow(["timestamp", "sensor_id","sensor_name", "value", "unit"])
             self.lines_written = 1
         else:
             # Licz linię w pliku (bez nagłówka)
@@ -53,8 +54,8 @@ class Logger:
             self.current_file.close()
             self.current_file = None
 
-    def log_reading(self, sensor_id: str, timestamp: datetime, value: float, unit: str) -> None:
-        row = [timestamp.isoformat(), sensor_id, value, unit]
+    def log_reading(self, timestamp: datetime,sensor_id: str,sensor_name: str, value: float, unit: str) -> None:
+        row = [timestamp.isoformat(), sensor_id,sensor_name, value, unit]
         self.buffer.append(row)
         if len(self.buffer) >= self.buffer_size:
             self._flush_buffer()
@@ -120,10 +121,23 @@ class Logger:
         # Przenieś i spakuj aktualny plik do archive/
         base_name = os.path.basename(self.current_filename)
         archive_path = os.path.join(self.archive_dir, base_name)
-        shutil.move(self.current_filename, archive_path)
+        name = archive_path[0:-4]
+        print(name)
+        i=1
+        while True:
+            if not os.path.isfile(name + ".csv.zip"):
+                break
+            if i==1:
+                name += "-" + str(i)
+            else:
+                name[-1] = str(i)
+            i+=1
 
+        zip_path = name + ".csv.zip"
+        shutil.move(self.current_filename, archive_path)
+        
         # Kompresja zip
-        zip_path = archive_path + ".zip"
+
         with zipfile.ZipFile(zip_path, mode='w', compression=zipfile.ZIP_DEFLATED) as zipf:
             zipf.write(archive_path, arcname=base_name)
         os.remove(archive_path)

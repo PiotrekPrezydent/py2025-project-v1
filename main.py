@@ -1,7 +1,7 @@
 import asyncio
 import unittest
 from sensors.sensor_manager import SensorManager
-from logger.logger import Logger  # zakładam, że logger.py jest w katalogu projektu
+from logger.logger import Logger 
 from datetime import datetime
 
 CONFIG_PATH = "./configs/sensors_config.json"
@@ -11,13 +11,13 @@ async def main():
     logger = Logger(LOGGER_CONFIG_PATH)
     logger.start()
     
-    manager = SensorManager(CONFIG_PATH, logger=logger)
+    manager = SensorManager(CONFIG_PATH)
     
     # Rejestracja callbacka logowania do każdego sensora
     for sensor in manager.get_all_sensors():
         sensor.register_callback(
-            lambda sensor_id, timestamp, value, unit, logger=logger: 
-                logger.log_reading(sensor_id, timestamp, value, unit)
+            lambda timestamp, sensor_id, name, value, unit, logger=logger: 
+                logger.log_reading(timestamp, sensor_id, name, value, unit)
         )
     
     manager.start_all()

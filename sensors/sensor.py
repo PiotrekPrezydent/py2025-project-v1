@@ -12,7 +12,7 @@ class Sensor:
         self.frequency = frequency
         self.active = False
         self.last_value = None
-        self._callbacks = []
+        self._callback = None
         self._stop_event = asyncio.Event()
         self._stop_event.set()
         self._task = None
@@ -38,20 +38,13 @@ class Sensor:
     
     def register_callback(self, callback):
         if callable(callback):
-            self._callbacks.append(callback)
+            self._callback = callback
         else:
             raise ValueError("Callback musi być callable")
         
-    def unregister_callback(self, callback):
-        try:
-            self._callbacks.remove(callback)
-        except ValueError:
-            pass
-
     def _notify_callbacks(self):
         timestamp = datetime.datetime.now()
-        for cb in self._callbacks:
-            cb(self.sensor_id, timestamp, self.get_last_value(), self.unit)
+        self._callback(timestamp, self.sensor_id, self.name, self.get_last_value(), self.unit)
 
     def start(self):
         if not self.active:

@@ -27,11 +27,32 @@ SAMPLE_CONFIG = json.dumps([
 ])
 
 class TestSensorManager(unittest.TestCase):
+    def setUp(self):
+        self.test_config = [
+            {
+                "id": "1",
+                "type": "temperature",
+                "name": "Czujnik temperatury",
+                "unit": "°C",
+                "min_value": -10,
+                "max_value": 40,
+                "frequency": 0.1
+            },
+            {
+                "id": "2",
+                "type": "humidity",
+                "name": "Czujnik wilgotności",
+                "unit": "%",
+                "min_value": 10,
+                "max_value": 90,
+                "frequency": 0.2
+            }
+        ]
+        self.config_path = "tests/temp_test_config.json"
+        with open(self.config_path, "w", encoding="utf-8") as f:
+            json.dump(self.test_config, f)
 
-    @patch("builtins.open", new_callable=mock_open, read_data=SAMPLE_CONFIG)
-    def setUp(self, mock_file):
-        self.logger = MagicMock()
-        self.manager = SensorManager("dummy_path.json", logger=self.logger)
+        self.manager = SensorManager(self.config_path)
 
     def test_load_config_loads_sensors(self):
         self.assertEqual(len(self.manager.sensors), 2)
@@ -63,16 +84,6 @@ class TestSensorManager(unittest.TestCase):
         sensor.stop = MagicMock()
         self.manager.stop_sensor(sensor.sensor_id)
         sensor.stop.assert_called_once()
-
-    def test_log_sensor_uses_logger(self):
-        sensor = self.manager.sensors[0]
-        self.manager.log_sensor(sensor.sensor_id)
-        self.logger.info.assert_called_with(str(sensor))
-
-    # def test_log_all_sensors_uses_logger(self):
-    #     self.manager.log_all_sensors()
-    #     calls = [unittest.mock.call(str(sensor)) for sensor in self.manager.sensors]
-    #     self.logger.info.assert_has_calls(calls, any_order=True)
 
 if __name__ == "__main__":
     unittest.main()

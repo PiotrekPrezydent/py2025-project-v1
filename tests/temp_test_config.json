@@ -1,0 +1,1 @@
+[{"id": "1", "type": "temperature", "name": "Czujnik temperatury", "unit": "\u00b0C", "min_value": -10, "max_value": 40, "frequency": 0.1}, {"id": "2", "type": "humidity", "name": "Czujnik wilgotno\u015bci", "unit": "%", "min_value": 10, "max_value": 90, "frequency": 0.2}]
