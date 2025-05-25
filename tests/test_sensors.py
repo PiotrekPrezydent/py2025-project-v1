@@ -19,6 +19,7 @@ class TestSensorBase(unittest.IsolatedAsyncioTestCase):
 
     async def test_start_and_stop_loop_calls_read_value(self):
         with patch.object(self.sensor, 'read_value', wraps=self.sensor.read_value) as mock_read:
+            self.sensor.register_callback(lambda *_: None)
             self.sensor.start()
             # Czekamy 0.35s - powinno wykonać się co najmniej 3 razy (frequency=0.1s)
             await asyncio.sleep(0.35)
@@ -37,6 +38,7 @@ class TestTemperatureSensor(unittest.IsolatedAsyncioTestCase):
 
     async def test_start_and_stop_loop_calls_read_value(self):
         with patch.object(self.sensor, 'read_value', wraps=self.sensor.read_value) as mock_read:
+            self.sensor.register_callback(lambda *_: None)
             self.sensor.start()
             await asyncio.sleep(0.35)
             self.sensor.stop()
@@ -59,6 +61,7 @@ class TestHumiditySensor(unittest.IsolatedAsyncioTestCase):
 
     async def test_start_and_stop_loop_calls_read_value(self):
         with patch.object(self.sensor, 'read_value', wraps=self.sensor.read_value) as mock_read:
+            self.sensor.register_callback(lambda *_: None)
             self.sensor.start()
             await asyncio.sleep(0.35)
             self.sensor.stop()
@@ -80,6 +83,7 @@ class TestPressureSensor(unittest.IsolatedAsyncioTestCase):
 
     async def test_start_and_stop_loop_calls_read_value(self):
         with patch.object(self.sensor, 'read_value', wraps=self.sensor.read_value) as mock_read:
+            self.sensor.register_callback(lambda *_: None)
             self.sensor.start()
             await asyncio.sleep(0.35)
             self.sensor.stop()
@@ -101,6 +105,7 @@ class TestLightSensor(unittest.IsolatedAsyncioTestCase):
 
     async def test_start_and_stop_loop_calls_read_value(self):
         with patch.object(self.sensor, 'read_value', wraps=self.sensor.read_value) as mock_read:
+            self.sensor.register_callback(lambda *_: None)
             self.sensor.start()
             await asyncio.sleep(0.35)
             self.sensor.stop()
