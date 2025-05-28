@@ -6,6 +6,10 @@ Stwórz system symulujący pracę kilku czujników (np. temperatury, wilgotnośc
 
 ---
 
+## Uruchamianie:
+```py  start_server.py ``` uruchamia nam serwer
+```py start_client.py``` uruchamia nam klienta z GUI
+
 ### Główne funkcjonalności:
 
 **Symulacja czujników:** Za pomocą generatorów i metod losowych (z wykorzystaniem Numpy) symulowane będą odczyty z czujników.
@@ -17,6 +21,7 @@ Stwórz system symulujący pracę kilku czujników (np. temperatury, wilgotnośc
 **Komunikacja sieciowa:** Realizacja prostego serwera-klienta wykorzystującego gniazda (sockets) do przesyłania danych z czujników na odległy terminal lub aplikację.
 
 **GUI:** Implementacja interfejsu graficznego (przy użyciu Tkinter), który pozwoli na uruchomienie symulacji, podgląd odczytów oraz sterowanie pracą systemu.
+         GUI WYKONANE NA WŁASNY SPOSÓB, działa ono na kliencie, korzysta z modułu sensor aby logger aby ściągać informacje o sensorach, pozwala na modyfikowanie aktualnych konfiguracji sensorów oraz podgląd do wykresu ostatnich wartości sensorów w czasie rzeczywistym
 
 **Analiza i wizualizacja danych:** Przygotowanie Jupyter Notebooka, w którym dane z czujników zostaną zanalizowane przy użyciu Numpy, Scipy, Matplotlib oraz Pandas, a wyniki zaprezentowane graficznie.
 

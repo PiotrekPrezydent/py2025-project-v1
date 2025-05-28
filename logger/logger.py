@@ -69,6 +69,16 @@ class Logger:
     def log_reading(self, timestamp: datetime,sensor_id: str,sensor_name: str, value: float, unit: str) -> None:
         row = [timestamp.isoformat(), sensor_id,sensor_name, value, unit]
         self.buffer.append(row)
+        self._send_event(
+            "log_reading", {
+            "timestamp": timestamp.isoformat(),
+            "sensor_id": sensor_id,
+            "sensor_name": sensor_name,
+            "value": value,
+            "unit": unit,
+            "filename": self.current_filename,
+            "buffer_size": self.buffer_size
+        })
         if not self.current_file:
             return
         if len(self.buffer) >= self.buffer_size:
